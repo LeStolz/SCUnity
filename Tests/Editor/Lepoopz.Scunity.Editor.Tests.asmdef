@@ -1,0 +1,14 @@
+{
+    "name": "Lepoopz.Scunity.Editor.Tests",
+    "references": [
+        "Lepoopz.Scunity.Editor",
+        "Lepoopz.Scunity"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}

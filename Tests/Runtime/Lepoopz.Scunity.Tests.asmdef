@@ -1,0 +1,11 @@
+{
+    "name": "Lepoopz.Scunity.Tests",
+    "references": [
+        "Lepoopz.Scunity"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": []
+}

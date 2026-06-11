@@ -1,0 +1,10 @@
+{
+    "name": "Lepoopz.Scunity.Editor",
+    "references": [
+      "Lepoopz.Scunity"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}
