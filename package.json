@@ -13,6 +13,13 @@
 		"url": "http://www.example.com",
 		"email": "vonamdang03@gmail.com"
 	},
+	"samples": [
+		{
+			"displayName": "Basic Example",
+			"description": "A sample showcasing how to use SCUnity.",
+			"path": "Samples/Example"
+		}
+	],
 	"changelogUrl": "https://example.com/changelog.html",
 	"documentationUrl": "https://example.com/",
 	"licensesUrl": "https://example.com/licensing.html"
