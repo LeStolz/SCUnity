@@ -23,7 +23,7 @@ namespace SCUnity
 
 		public UnityEvent<SCResponse> OnMessage = new();
 
-		void Awake()
+		void OnEnable()
 		{
 			if (Instance != null)
 			{
@@ -32,7 +32,10 @@ namespace SCUnity
 			}
 			Instance = this;
 			DontDestroyOnLoad(gameObject);
+		}
 
+		void Awake()
+		{
 			python.StartInfo.FileName = Path.Combine(PYTHON_PLUGIN_DIR, "Python/python.exe");
 			python.StartInfo.Arguments = Path.Combine(PYTHON_PLUGIN_DIR, "scbackend.py");
 			python.StartInfo.RedirectStandardInput = true;

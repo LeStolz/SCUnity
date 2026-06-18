@@ -24,12 +24,12 @@ namespace SCUnity
 		public static Dictionary<string, SCStateMachine> StateMachines { get; private set; } = new();
 
 		[Header("State Machine")]
-		[SerializeField] string scName;
+		public string scName;
 
 		[Header("Asset Source")]
-		[SerializeField] TextAsset scAsset;
+		public TextAsset scAsset;
 		[Header("Or Text Source")]
-		[SerializeField, TextArea(10, 20)] string scXml;
+		[TextArea(10, 20)] public string scXml;
 
 		[Header("Events")]
 		public UnityEvent<ActiveStates> OnStatesChanged;
