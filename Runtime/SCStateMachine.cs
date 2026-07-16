@@ -23,8 +23,7 @@ namespace SCUnity
 
 		public static Dictionary<string, SCStateMachine> StateMachines { get; private set; } = new();
 
-		[Header("State Machine")]
-		public string scName;
+		string scName;
 
 		[Header("Asset Source")]
 		public TextAsset scAsset;
@@ -38,9 +37,27 @@ namespace SCUnity
 
 		async void Start()
 		{
-			if (!string.IsNullOrEmpty(scName) && (scAsset != null || !string.IsNullOrEmpty(scXml)))
+			if (scAsset != null || !string.IsNullOrEmpty(scXml))
 			{
-				await CreateMachine(scName, scAsset, scXml);
+				scName = GetInstanceID().ToString().Replace('-', '_');
+
+				string data = scAsset != null ? scAsset.text : scXml;
+				string encoded = EncodeData(data);
+
+				if (StateMachines.ContainsKey(scName))
+				{
+					Debug.LogError($"State machine with name {scName} already exists.");
+					return;
+				}
+
+				await SCClient.Instance.Send(new SCRequest
+				{
+					op = "createStateMachine",
+					name = scName,
+					data = encoded
+				});
+
+				StateMachines[scName] = this;
 			}
 		}
 
@@ -58,6 +75,18 @@ namespace SCUnity
 		void OnDisable()
 		{
 			SCClient.Instance.OnMessage.RemoveListener(HandleMessage);
+		}
+
+		void OnDestroy()
+		{
+			SCClient.Instance.Send(new SCRequest
+			{
+				op = "destroyStateMachine",
+				name = scName
+			}
+			);
+
+			StateMachines.Remove(scName);
 		}
 
 		void HandleMessage(SCResponse msg)
@@ -83,44 +112,6 @@ namespace SCUnity
 		public string EncodeData(string data)
 		{
 			return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(data));
-		}
-
-		public async Task CreateMachine(string name, TextAsset asset, string xml)
-		{
-			scName = name;
-			scAsset = asset;
-			scXml = xml;
-
-			string data = asset != null ? asset.text : xml;
-			string encoded = EncodeData(data);
-
-			if (StateMachines.ContainsKey(name))
-			{
-				Debug.LogError($"State machine with name {name} already exists.");
-				return;
-			}
-
-			await SCClient.Instance.Send(new SCRequest
-			{
-				op = "createStateMachine",
-				name = name,
-				data = encoded
-			});
-
-			StateMachines[name] = this;
-		}
-
-		void DestroyMachine() => SCClient.Instance.Send(new SCRequest
-		{
-			op = "destroyStateMachine",
-			name = scName
-		}
-		);
-
-		void OnDestroy()
-		{
-			DestroyMachine();
-			StateMachines.Remove(scName);
 		}
 
 		public async Task<ActiveStates> SendEvent(string @event, string data = null)
