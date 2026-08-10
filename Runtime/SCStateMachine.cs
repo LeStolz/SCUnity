@@ -26,9 +26,14 @@ namespace SCUnity
 		string scName;
 
 		[Header("Asset Source")]
-		public TextAsset scAsset;
+		[SerializeField] TextAsset scAsset;
 		[Header("Or Text Source")]
-		[TextArea(10, 20)] public string scXml;
+		[TextArea(10, 20)][SerializeField] string scXml;
+		public string ScXml
+		{
+			get => scAsset != null ? scAsset.text : scXml;
+			set => scXml = value;
+		}
 
 		[Header("Events")]
 		public UnityEvent<ActiveStates> OnStatesChanged;
@@ -37,12 +42,10 @@ namespace SCUnity
 
 		async void Start()
 		{
-			if (scAsset != null || !string.IsNullOrEmpty(scXml))
+			if (!string.IsNullOrEmpty(ScXml))
 			{
 				scName = GetInstanceID().ToString().Replace('-', '_');
-
-				string data = scAsset != null ? scAsset.text : scXml;
-				string encoded = EncodeData(data);
+				string encoded = EncodeData(ScXml);
 
 				if (StateMachines.ContainsKey(scName))
 				{
