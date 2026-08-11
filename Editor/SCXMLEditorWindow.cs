@@ -56,7 +56,25 @@ namespace SCUnity.Editor
         {
             if (currentStateMachine != null && graphView != null && parser != null)
             {
-                var data = parser.Parse(currentStateMachine.ScXml);
+                string xml = currentStateMachine.ScXml;
+                
+                // Bypass Unity's TextAsset cache because AssetDatabase.ImportAsset is asynchronous 
+                // and scAsset.text will return stale data if we click Refresh immediately after saving.
+                var field = typeof(SCStateMachine).GetField("scAsset", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var textAsset = field.GetValue(currentStateMachine) as TextAsset;
+                    if (textAsset != null)
+                    {
+                        string path = AssetDatabase.GetAssetPath(textAsset);
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            xml = System.IO.File.ReadAllText(path);
+                        }
+                    }
+                }
+
+                var data = parser.Parse(xml);
                 graphView.PopulateView(data);
             }
         }
@@ -83,7 +101,7 @@ namespace SCUnity.Editor
                 refreshButton.Add(img);
             }
 
-            var saveButton = new UnityEditor.UIElements.ToolbarButton(() => Debug.LogError("Saving is not yet implemented."))
+            var saveButton = new UnityEditor.UIElements.ToolbarButton(() => SaveGraph())
             {
                 tooltip = "Save",
                 text = saveIcon == null ? "Save" : ""
@@ -102,6 +120,34 @@ namespace SCUnity.Editor
             toolbar.Add(refreshButton);
             toolbar.Add(saveButton);
             rootVisualElement.Add(toolbar);
+        }
+
+        private void SaveGraph()
+        {
+            if (currentStateMachine != null && currentStateMachine.ScXml != null && parser != null && graphView != null && graphView.Data != null)
+            {
+                graphView.SyncLayoutToData();
+                parser.SaveLayout(currentStateMachine, graphView.Data);
+
+                // Write directly to file to ensure persistence if backed by TextAsset
+                var field = typeof(SCStateMachine).GetField("scAsset", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var textAsset = field.GetValue(currentStateMachine) as UnityEngine.TextAsset;
+                    if (textAsset != null)
+                    {
+                        string path = UnityEditor.AssetDatabase.GetAssetPath(textAsset);
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            System.IO.File.WriteAllText(path, currentStateMachine.ScXml);
+                            UnityEditor.AssetDatabase.ImportAsset(path);
+                        }
+                    }
+                }
+
+                // Refresh graph to ensure everything is synced and parsed back correctly
+                LoadGraph();
+            }
         }
     }
 }

@@ -2,14 +2,13 @@
 <scxml
     xmlns="http://www.w3.org/2005/07/scxml"
     version="1.0"
-    initial="Bottom"
     datamodel="ecmascript"
 >
     <state id="Top">
         <transition event="toggle" target="Bottom"/>
     </state>
 
-    <state id="Bottom">
+    <initial id="Bottom">
         <transition event="toggle" target="Top"/>
-    </state>
+    </initial>
 </scxml>

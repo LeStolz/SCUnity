@@ -1,0 +1,84 @@
+<scxml version="1.0" xmlns="http://www.w3.org/2005/07/scxml" xmlns:editor="http://www.w3.org/2005/07/scxml">
+  <datamodel>
+    <data id="battery" expr="100" />
+    <data id="missionName" expr="'Alpha'" />
+  </datamodel>
+
+  <initial>
+    <transition target="Booting" />
+  </initial>
+
+  <state id="Booting" editor:x="100" editor:y="100">
+    <onentry>
+      <log label="System" expr="'Booting drone OS...'" />
+    </onentry>
+    <transition event="boot_complete" target="Idle">
+      <assign location="battery" expr="100" />
+    </transition>
+  </state>
+
+  <state id="Idle" editor:x="300" editor:y="100">
+    <transition event="start_mission" target="Active" />
+    <transition event="critical_error" target="Error" />
+  </state>
+
+  <state id="Active" editor:x="300" editor:y="300">
+    <onentry>
+      <log label="Mission" expr="'Starting mission: ' + missionName" />
+    </onentry>
+    
+    <initial>
+      <transition target="Takeoff" />
+    </initial>
+
+    <state id="Takeoff" editor:x="350" editor:y="400">
+      <transition event="altitude_reached" target="Flying" />
+    </state>
+
+    <!-- Parallel state: Drone flies while camera operates independently -->
+    <parallel id="Flying" editor:x="350" editor:y="550">
+      <transition event="battery_low" cond="battery &lt; 20" target="Landing" />
+      <transition event="mission_complete" target="Landing" />
+
+      <state id="Navigation" editor:x="400" editor:y="650">
+        <initial>
+          <transition target="Waypoints" />
+        </initial>
+        <state id="Waypoints" editor:x="450" editor:y="750">
+          <transition event="return_to_home" target="Returning" />
+        </state>
+        <state id="Returning" editor:x="650" editor:y="750">
+          <transition event="home_reached" target="Waypoints" />
+        </state>
+      </state>
+
+      <state id="Camera" editor:x="400" editor:y="900">
+        <initial>
+          <transition target="Standby" />
+        </initial>
+        <state id="Standby" editor:x="450" editor:y="1000">
+          <transition event="start_record" target="Recording" />
+        </state>
+        <state id="Recording" editor:x="650" editor:y="1000">
+          <transition event="stop_record" target="Standby" />
+          <onentry>
+            <log label="Camera" expr="'Recording started'" />
+          </onentry>
+        </state>
+      </state>
+    </parallel>
+
+    <state id="Landing" editor:x="350" editor:y="1200">
+      <transition event="landed" target="Idle" />
+    </state>
+
+    <!-- This transitions out of the entire Active compound state -->
+    <transition event="critical_error" target="Error" />
+  </state>
+
+  <final id="Error" editor:x="700" editor:y="100">
+    <onentry>
+      <log label="System" expr="'Emergency shutdown initiated!'" />
+    </onentry>
+  </final>
+</scxml>

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace SCUnity.Editor
 {
@@ -21,8 +22,11 @@ namespace SCUnity.Editor
     public class SCXMLStateData
     {
         public string Id;
+        public string OriginalId;
         public StateType Type;
         public string ParentId;
+        public Vector2 Position;
+        public bool HasSavedPosition;
         public bool IsCompound;
         public bool IsInitial;
 
@@ -38,5 +42,9 @@ namespace SCUnity.Editor
         public string Event;
         public string Condition;
         public List<string> Actions = new List<string>();
+
+        public string OriginalTargetId;
+        public string OriginalEvent;
+        public string OriginalCondition;
     }
 }

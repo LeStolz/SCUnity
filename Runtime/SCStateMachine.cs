@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -32,7 +33,7 @@ namespace SCUnity
 		public string ScXml
 		{
 			get => scAsset != null ? scAsset.text : scXml;
-			set => scXml = value;
+			set => SetSCXML(value);
 		}
 
 		[Header("Events")]
@@ -110,6 +111,22 @@ namespace SCUnity
 					OnEventReceived?.Invoke(JsonConvert.DeserializeObject<EventData>(msg.data));
 					break;
 			}
+		}
+
+		void SetSCXML(string newXml)
+		{
+			if (scAsset != null)
+			{
+				string assetPath = AssetDatabase.GetAssetPath(scAsset);
+				if (!string.IsNullOrEmpty(assetPath))
+				{
+					string fullPath = System.IO.Path.GetFullPath(assetPath);
+					System.IO.File.WriteAllText(fullPath, newXml);
+					AssetDatabase.ImportAsset(assetPath);
+				}
+			}
+
+			scXml = newXml;
 		}
 
 		public string EncodeData(string data)

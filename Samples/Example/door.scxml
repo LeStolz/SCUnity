@@ -2,20 +2,19 @@
 <scxml
     xmlns="http://www.w3.org/2005/07/scxml"
     version="1.0"
-    initial="Closed"
     datamodel="ecmascript"
 >
     <datamodel>
         <data id="count" expr="0"/>
     </datamodel>
 
-    <state id="Closed">
+    <initial id="Closed">
         <onentry>
             <log expr="_event.data.msg + ' received on close.'"/>
         </onentry>
 
         <transition event="open" target="Open"/>
-    </state>
+    </initial>
 
     <state id="Open">
         <onentry>
@@ -23,10 +22,8 @@
             <log expr="_event.data.msg + ' received on open.'"/>
         </onentry>
 
-        <!-- If count < 3 → normal close -->
         <transition event="close" cond="count &lt; 3" target="Closed"/>
 
-        <!-- If count >= 3 → break -->
         <transition event="close" cond="count >= 3" target="Broken">
             <log label="send:broken" expr="JSON.stringify({ count: count })"/>
         </transition>

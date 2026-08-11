@@ -6,35 +6,50 @@ namespace SCUnity.Editor
 {
     public class SCXMLNode : Node
     {
-        public string StateId { get; private set; }
+        public string StateId { get; set; }
         public string StateType { get; private set; } // "state", "initial", "final", "parallel"
 
         public Port InputPort { get; private set; }
         public Port OutputPort { get; private set; }
+        public SCXMLStateData Data { get; private set; }
 
         public SCXMLNode(SCXMLStateData data, bool isInitial)
         {
+            Data = data;
             StateId = data.Id;
             StateType = data.Type.ToString().ToLower();
-            title = data.Id;
-            // Restore default GraphView styling but fully opaque
-            mainContainer.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
-
-            if (isInitial || data.Type == SCUnity.Editor.StateType.Initial)
-            {
-                titleContainer.style.backgroundColor = new Color(0.1f, 0.5f, 0.1f, 1f);
-            }
-            else if (data.Type == SCUnity.Editor.StateType.Final)
-            {
-                titleContainer.style.backgroundColor = new Color(0.6f, 0.2f, 0.2f, 1f);
-            }
-            else if (data.Type == SCUnity.Editor.StateType.Parallel)
-            {
-                titleContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.6f, 1f);
-            }
+            title = data.Id.StartsWith("_initial_") ? "Initial" : data.Id;
+            
+            UpdateStyling();
 
             CreatePorts();
             PopulateData(data);
+        }
+
+        public void UpdateStyling()
+        {
+            mainContainer.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+
+            bool isGlobalInitial = false;
+            var graphView = GetFirstAncestorOfType<SCXMLGraphView>();
+            if (graphView != null && graphView.Data != null && graphView.Data.InitialStateId == Data.Id) isGlobalInitial = true;
+
+            if (Data.Type == SCUnity.Editor.StateType.Initial || isGlobalInitial)
+            {
+                titleContainer.style.backgroundColor = new Color(0.1f, 0.5f, 0.1f, 1f);
+            }
+            else if (Data.Type == SCUnity.Editor.StateType.Final)
+            {
+                titleContainer.style.backgroundColor = new Color(0.6f, 0.2f, 0.2f, 1f);
+            }
+            else if (Data.Type == SCUnity.Editor.StateType.Parallel)
+            {
+                titleContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.6f, 1f);
+            }
+            else
+            {
+                titleContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f); // Default Unity Node title color
+            }
         }
 
         private void CreatePorts()
@@ -71,6 +86,8 @@ namespace SCUnity.Editor
         {
             base.BuildContextualMenu(evt);
 
+            evt.menu.MenuItems().RemoveAll(a => a is DropdownMenuSeparator || (a is DropdownMenuAction action && action.name.Contains("Disconnect")));
+
             evt.menu.AppendAction("Make Transition", a =>
             {
                 var graphView = GetFirstAncestorOfType<SCXMLGraphView>();
@@ -81,43 +98,11 @@ namespace SCUnity.Editor
             });
         }
 
+
         private void PopulateData(SCXMLStateData data)
         {
-            foreach (var kvp in data.DataModel)
-            {
-                var label = new Label($"{kvp.Key} = {kvp.Value}");
-                label.style.color = new Color(0.8f, 0.8f, 0.8f);
-                label.style.paddingLeft = 15;
-                extensionContainer.Add(label);
-            }
-
-            foreach (var entry in data.OnEntryActions)
-            {
-                AddActionFoldout("onentry", entry);
-            }
-
-            foreach (var exit in data.OnExitActions)
-            {
-                AddActionFoldout("onexit", exit);
-            }
-
-            RefreshExpandedState();
-        }
-
-        private void AddActionFoldout(string titleText, string innerXml)
-        {
-            var foldout = new Foldout
-            {
-                text = titleText,
-                value = false // Collapsed by default
-            };
-
-            var textElement = new Label(innerXml);
-            textElement.style.whiteSpace = WhiteSpace.Normal; // Allows wrapping or preserves spacing
-            textElement.style.color = new Color(0.7f, 0.7f, 0.7f);
-
-            foldout.Add(textElement);
-            extensionContainer.Add(foldout);
+            // We no longer populate onentry, onexit, or data models on the node itself.
+            // This is now handled by the contextual Inspector (Blackboard).
             RefreshExpandedState();
         }
     }

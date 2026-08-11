@@ -11,50 +11,17 @@ namespace SCUnity.Editor
         private SCXMLNode targetNode;
         private bool m_Hovered = false;
 
-        public SCXMLEdge(string eventName, string condition, List<string> actions, SCXMLNode targetNode)
-        {
-            this.targetNode = targetNode;
+        public SCXMLTransitionData Data { get; set; }
 
-            // 1. Setup Label / Dropdown
-            string title = "";
-            if (!string.IsNullOrEmpty(eventName)) title += eventName;
-            if (!string.IsNullOrEmpty(condition)) title += string.IsNullOrEmpty(title) ? $"[{condition}]" : $"\n[{condition}]";
+        public SCXMLEdge(SCXMLTransitionData data, SCXMLNode targetNode)
+        {
+            this.Data = data;
+            this.targetNode = targetNode;
 
             labelContainer = new VisualElement();
             labelContainer.style.position = Position.Absolute;
-            
-            // Only add background/padding if there's text/actions
-            if (!string.IsNullOrEmpty(title) || actions.Count > 0)
-            {
-                labelContainer.style.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.8f);
-                labelContainer.style.paddingLeft = 4;
-                labelContainer.style.paddingRight = 4;
-                labelContainer.style.borderTopLeftRadius = 4;
-                labelContainer.style.borderTopRightRadius = 4;
-                labelContainer.style.borderBottomLeftRadius = 4;
-                labelContainer.style.borderBottomRightRadius = 4;
-
-                if (actions.Count > 0)
-                {
-                    var foldout = new Foldout { text = string.IsNullOrEmpty(title) ? "Actions" : title, value = false };
-                    foreach (var action in actions)
-                    {
-                        var text = new Label(action);
-                        text.style.whiteSpace = WhiteSpace.Normal;
-                        text.style.color = new Color(0.7f, 0.7f, 0.7f);
-                        foldout.Add(text);
-                    }
-                    labelContainer.Add(foldout);
-                }
-                else
-                {
-                    var lbl = new Label(title);
-                    lbl.style.color = Color.white;
-                    labelContainer.Add(lbl);
-                }
-            }
-
             Add(labelContainer);
+            UpdateLabel();
 
             var arrowElement = new ArrowElement { name = "edge-arrow" };
             arrowElement.style.position = Position.Absolute;
@@ -65,6 +32,34 @@ namespace SCUnity.Editor
 
             this.RegisterCallback<MouseEnterEvent>(e => { m_Hovered = true; this.MarkDirtyRepaint(); });
             this.RegisterCallback<MouseLeaveEvent>(e => { m_Hovered = false; this.MarkDirtyRepaint(); });
+        }
+
+        public void UpdateLabel()
+        {
+            string title = "";
+            if (!string.IsNullOrEmpty(Data.Event)) title += Data.Event;
+            if (!string.IsNullOrEmpty(Data.Condition)) title += string.IsNullOrEmpty(title) ? $"[{Data.Condition}]" : $"\n[{Data.Condition}]";
+
+            labelContainer.Clear();
+
+            if (!string.IsNullOrEmpty(title))
+            {
+                labelContainer.style.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+                labelContainer.style.paddingLeft = 4;
+                labelContainer.style.paddingRight = 4;
+                labelContainer.style.borderTopLeftRadius = 4;
+                labelContainer.style.borderTopRightRadius = 4;
+                labelContainer.style.borderBottomLeftRadius = 4;
+                labelContainer.style.borderBottomRightRadius = 4;
+
+                var lbl = new Label(title);
+                lbl.style.color = Color.white;
+                labelContainer.Add(lbl);
+            }
+            else
+            {
+                labelContainer.style.backgroundColor = Color.clear;
+            }
         }
 
         private class ArrowElement : VisualElement
