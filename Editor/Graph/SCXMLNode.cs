@@ -13,7 +13,7 @@ namespace SCUnity.Editor
         public SCXMLNode(SCXMLStateData data)
         {
             Data = data;
-            title = data.id.StartsWith("_initial_") ? "Initial" : data.id;
+            title = data.id;
 
             UpdateStyling();
             CreatePorts();
