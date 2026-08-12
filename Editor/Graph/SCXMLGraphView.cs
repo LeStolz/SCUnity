@@ -204,6 +204,10 @@ namespace SCUnity.Editor
                             Data.globalDataModel[e.newValue] = oldVal;
                             currentKey = e.newValue;
                         }
+                        else
+                        {
+                            keyField.SetValueWithoutNotify(currentKey);
+                        }
                     });
 
                     valField.RegisterValueChangedCallback(e =>
@@ -235,6 +239,12 @@ namespace SCUnity.Editor
                         string oldId = node.Data.id;
                         string newId = e.newValue;
 
+                        if (string.IsNullOrEmpty(newId) || (Data != null && Data.states.Any(s => s.id == newId && s != node.Data)))
+                        {
+                            idField.SetValueWithoutNotify(oldId);
+                            return;
+                        }
+
                         node.Data.id = newId;
                         node.title = newId;
                         blackboard.title = newId;
@@ -245,6 +255,11 @@ namespace SCUnity.Editor
                             {
                                 if (transition.sourceId == oldId) transition.sourceId = newId;
                                 if (transition.targetId == oldId) transition.targetId = newId;
+                            }
+                            
+                            foreach (var s in Data.states)
+                            {
+                                if (s.parentId == oldId) s.parentId = newId;
                             }
                         }
                     });

@@ -11,9 +11,17 @@ namespace SCUnity
 {
 	public class SCClient : MonoBehaviour
 	{
-		public static readonly string PYTHON_PLUGIN_DIR = Path.GetFullPath(
-			"Packages/com.lepoopz.scunity/Runtime/Plugins/sc"
-		);
+		public static string PYTHON_PLUGIN_DIR
+		{
+			get
+			{
+#if UNITY_EDITOR
+				return Path.GetFullPath("Packages/com.lepoopz.scunity/Runtime/Plugins/sc");
+#else
+				return Path.Combine(Application.dataPath, "Plugins", "sc");
+#endif
+			}
+		}
 		public static SCClient Instance { get; private set; }
 
 		readonly Queue<Action> mainThreadActionQueue = new();
@@ -122,6 +130,11 @@ namespace SCUnity
 		{
 			if (!python.HasExited) python.Kill();
 			python.Dispose();
+		}
+
+		void OnDestroy()
+		{
+			Dispose();
 		}
 	}
 

@@ -69,9 +69,10 @@ namespace SCUnity
 		{
 			IEnumerator ConnectToSC()
 			{
-				if (SCClient.Instance == null && gameObject.GetComponent<SCClient>() == null)
+				if (SCClient.Instance == null)
 				{
-					gameObject.AddComponent<SCClient>();
+					var go = new GameObject("SCClient");
+					go.AddComponent<SCClient>();
 				}
 
 				yield return new WaitUntil(() => SCClient.Instance != null);
@@ -88,12 +89,12 @@ namespace SCUnity
 
 		void OnDestroy()
 		{
-			SCClient.Instance.Send(new SCRequest
-			{
-				op = "destroyStateMachine",
-				name = scName
-			}
-			);
+			if (SCClient.Instance != null)
+				SCClient.Instance.Send(new SCRequest
+				{
+					op = "destroyStateMachine",
+					name = scName
+				});
 
 			StateMachines.Remove(scName);
 		}
