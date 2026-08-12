@@ -27,7 +27,7 @@ namespace SCUnity.Editor
         private void OnEnable()
         {
             parser = new SCXMLParser();
-            GenerateToolbar();
+            ConstructToolbar();
             ConstructGraphView();
         }
 
@@ -41,11 +41,10 @@ namespace SCUnity.Editor
 
         private void ConstructGraphView()
         {
-            graphView = new SCXMLGraphView(this)
+            graphView = new SCXMLGraphView()
             {
                 name = "SCXML Graph"
             };
-            // Use flex-grow so it fills the remaining space under the toolbar instead of covering it absolutely
             graphView.style.flexGrow = 1;
             rootVisualElement.Add(graphView);
 
@@ -54,32 +53,14 @@ namespace SCUnity.Editor
 
         private void LoadGraph()
         {
-            if (currentStateMachine != null && graphView != null && parser != null)
-            {
-                string xml = currentStateMachine.ScXml;
-                
-                // Bypass Unity's TextAsset cache because AssetDatabase.ImportAsset is asynchronous 
-                // and scAsset.text will return stale data if we click Refresh immediately after saving.
-                var field = typeof(SCStateMachine).GetField("scAsset", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field != null)
-                {
-                    var textAsset = field.GetValue(currentStateMachine) as TextAsset;
-                    if (textAsset != null)
-                    {
-                        string path = AssetDatabase.GetAssetPath(textAsset);
-                        if (!string.IsNullOrEmpty(path))
-                        {
-                            xml = System.IO.File.ReadAllText(path);
-                        }
-                    }
-                }
+            if (currentStateMachine == null || graphView == null || parser == null) return;
 
-                var data = parser.Parse(xml);
-                graphView.PopulateView(data);
-            }
+            string xml = currentStateMachine.ScXml;
+            var data = parser.Parse(xml);
+            graphView.PopulateView(data);
         }
 
-        private void GenerateToolbar()
+        private void ConstructToolbar()
         {
             var toolbar = new UnityEditor.UIElements.Toolbar();
             var refreshIcon = EditorGUIUtility.IconContent("Refresh").image as Texture2D;
@@ -124,30 +105,15 @@ namespace SCUnity.Editor
 
         private void SaveGraph()
         {
-            if (currentStateMachine != null && currentStateMachine.ScXml != null && parser != null && graphView != null && graphView.Data != null)
-            {
-                graphView.SyncLayoutToData();
-                parser.SaveLayout(currentStateMachine, graphView.Data);
+            if (
+                currentStateMachine == null || currentStateMachine.ScXml == null ||
+                parser == null || graphView == null || graphView.Data == null
+            ) return;
 
-                // Write directly to file to ensure persistence if backed by TextAsset
-                var field = typeof(SCStateMachine).GetField("scAsset", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field != null)
-                {
-                    var textAsset = field.GetValue(currentStateMachine) as UnityEngine.TextAsset;
-                    if (textAsset != null)
-                    {
-                        string path = UnityEditor.AssetDatabase.GetAssetPath(textAsset);
-                        if (!string.IsNullOrEmpty(path))
-                        {
-                            System.IO.File.WriteAllText(path, currentStateMachine.ScXml);
-                            UnityEditor.AssetDatabase.ImportAsset(path);
-                        }
-                    }
-                }
+            graphView.SyncData();
+            parser.Save(currentStateMachine, graphView.Data);
 
-                // Refresh graph to ensure everything is synced and parsed back correctly
-                LoadGraph();
-            }
+            LoadGraph();
         }
     }
 }

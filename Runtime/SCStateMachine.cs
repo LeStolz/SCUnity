@@ -69,6 +69,11 @@ namespace SCUnity
 		{
 			IEnumerator ConnectToSC()
 			{
+				if (SCClient.Instance == null && gameObject.GetComponent<SCClient>() == null)
+				{
+					gameObject.AddComponent<SCClient>();
+				}
+
 				yield return new WaitUntil(() => SCClient.Instance != null);
 				SCClient.Instance.OnMessage.AddListener(HandleMessage);
 			}

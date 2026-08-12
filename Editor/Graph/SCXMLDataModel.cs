@@ -5,7 +5,7 @@ namespace SCUnity.Editor
 {
     public enum StateType
     {
-        Normal,
+        State,
         Parallel,
         Initial,
         Final
@@ -13,38 +13,36 @@ namespace SCUnity.Editor
 
     public class SCXMLData
     {
-        public string InitialStateId;
-        public Dictionary<string, string> GlobalDataModel = new Dictionary<string, string>();
-        public List<SCXMLStateData> States = new List<SCXMLStateData>();
-        public List<SCXMLTransitionData> Transitions = new List<SCXMLTransitionData>();
+        public Dictionary<string, string> globalDataModel = new();
+        public List<SCXMLStateData> states = new();
+        public List<SCXMLTransitionData> transitions = new();
     }
 
     public class SCXMLStateData
     {
-        public string Id;
-        public string OriginalId;
-        public StateType Type;
-        public string ParentId;
-        public Vector2 Position;
-        public bool HasSavedPosition;
-        public bool IsCompound;
-        public bool IsInitial;
+        public string id;
+        public string originalId;
+        public StateType type;
+        public string parentId;
+        public Vector2 position;
+        public bool hasSavedPosition;
+        public bool isCompound;
 
-        public Dictionary<string, string> DataModel = new Dictionary<string, string>();
-        public List<string> OnEntryActions = new List<string>();
-        public List<string> OnExitActions = new List<string>();
+        public Dictionary<string, string> dataModel = new();
+        public List<string> onEntryActions = new();
+        public List<string> onExitActions = new();
     }
 
     public class SCXMLTransitionData
     {
-        public string SourceId;
-        public string TargetId;
-        public string Event;
-        public string Condition;
-        public List<string> Actions = new List<string>();
+        public string sourceId;
+        public string targetId;
+        public string @event;
+        public string condition;
+        public List<string> onTransitionActions = new();
 
-        public string OriginalTargetId;
-        public string OriginalEvent;
-        public string OriginalCondition;
+        public string originalTargetId;
+        public string originalEvent;
+        public string originalCondition;
     }
 }

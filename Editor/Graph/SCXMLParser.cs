@@ -26,28 +26,7 @@ namespace SCUnity.Editor
                     return data;
                 }
 
-                // Check for initial attribute on root
-                var initialAttr = root.Attribute("initial");
-                if (initialAttr != null)
-                {
-                    data.InitialStateId = initialAttr.Value;
-                }
-
-                // Parse global Datamodel
-                var rootDatamodel = root.Element(root.Name.Namespace + "datamodel");
-                if (rootDatamodel != null)
-                {
-                    foreach (var dataEl in rootDatamodel.Elements(root.Name.Namespace + "data"))
-                    {
-                        string dataId = dataEl.Attribute("id")?.Value;
-                        string dataExpr = dataEl.Attribute("expr")?.Value;
-                        if (!string.IsNullOrEmpty(dataId))
-                        {
-                            data.GlobalDataModel[dataId] = dataExpr;
-                        }
-                    }
-                }
-
+                ParseDataModel(root, data.globalDataModel);
                 ParseStateLevel(root, null, data);
             }
             catch (Exception e)
@@ -58,141 +37,132 @@ namespace SCUnity.Editor
             return data;
         }
 
-        private void ParseStateLevel(XElement parentElement, string parentId, SCXMLData data)
+        private static void ParseDataModel(XElement element, Dictionary<string, string> dataModel)
         {
-            var elements = parentElement.Elements().ToList();
+            var dataModelEl = element.Element(element.Name.Namespace + "datamodel");
+            if (dataModelEl != null)
+            {
+                foreach (var dataEl in dataModelEl.Elements(element.Name.Namespace + "data"))
+                {
+                    string dataId = dataEl.Attribute("id")?.Value;
+                    string dataExpr = dataEl.Attribute("expr")?.Value;
+                    if (!string.IsNullOrEmpty(dataId))
+                    {
+                        dataModel[dataId] = dataExpr;
+                    }
+                }
+            }
+        }
+
+        private void ParseStateLevel(XElement parentEl, string parentId, SCXMLData data)
+        {
+            var elements = parentEl.Elements().ToList();
 
             foreach (var el in elements)
             {
                 string localName = el.Name.LocalName;
-                if (localName == "state" || localName == "parallel" || localName == "initial" || localName == "final")
+                if (Enum.GetNames(typeof(StateType)).Contains(localName, StringComparer.OrdinalIgnoreCase))
                 {
                     ParseState(el, parentId, data);
                 }
             }
         }
 
-        private void ParseState(XElement stateElement, string parentId, SCXMLData data)
+        private void ParseState(XElement stateEl, string parentId, SCXMLData data)
         {
-            string id = stateElement.Attribute("id")?.Value;
-            string typeString = stateElement.Name.LocalName;
-
-            StateType type = StateType.Normal;
-            if (typeString == "parallel") type = StateType.Parallel;
-            else if (typeString == "initial") type = StateType.Initial;
-            else if (typeString == "final") type = StateType.Final;
+            string id = stateEl.Attribute("id")?.Value;
+            string typeString = stateEl.Name.LocalName;
+            StateType type = Enum.TryParse(typeString, true, out StateType parsedType) ? parsedType : StateType.State;
 
             if (string.IsNullOrEmpty(id))
             {
-                id = $"_{typeString}_{Guid.NewGuid().ToString().Substring(0, 5)}";
+                id = $"_{typeString}_{Guid.NewGuid().ToString()[..5]}";
             }
 
-            bool isCompound = stateElement.Elements().Any(e =>
-                e.Name.LocalName == "state" || e.Name.LocalName == "parallel" || e.Name.LocalName == "final");
+            bool isCompound = stateEl.Elements().Any(
+                e => Enum.GetNames(typeof(StateType)).Contains(e.Name.LocalName, StringComparer.OrdinalIgnoreCase)
+            );
 
             var stateData = new SCXMLStateData
             {
-                Id = id,
-                OriginalId = id,
-                Type = type,
-                ParentId = parentId,
-                IsCompound = isCompound
+                id = id,
+                originalId = id,
+                type = type,
+                parentId = parentId,
+                isCompound = isCompound
             };
 
-            var xAttr = stateElement.Attribute(EditorNs + "x");
-            var yAttr = stateElement.Attribute(EditorNs + "y");
+            var xAttr = stateEl.Attribute(EditorNs + "x");
+            var yAttr = stateEl.Attribute(EditorNs + "y");
             if (xAttr != null && float.TryParse(xAttr.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float x))
             {
-                stateData.Position.x = x;
-                stateData.HasSavedPosition = true;
+                stateData.position.x = x;
+                stateData.hasSavedPosition = true;
             }
             if (yAttr != null && float.TryParse(yAttr.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
             {
-                stateData.Position.y = y;
-                stateData.HasSavedPosition = true;
+                stateData.position.y = y;
+                stateData.hasSavedPosition = true;
             }
 
-            // Check if this state itself has an 'initial' attribute
-            var initialAttr = stateElement.Attribute("initial");
-            if (initialAttr != null)
+            ParseDataModel(stateEl, stateData.dataModel);
+
+            foreach (var onentry in stateEl.Elements(stateEl.Name.Namespace + "onentry"))
             {
-                // If we are at the root, set it as global initial
-                if (string.IsNullOrEmpty(parentId) && string.IsNullOrEmpty(data.InitialStateId))
-                {
-                    data.InitialStateId = initialAttr.Value;
-                }
+                stateData.onEntryActions.Add(GetCleanInnerXml(onentry));
             }
-
-            // Check if THIS state is the initial child of its parent
-            if (!string.IsNullOrEmpty(parentId))
+            foreach (var onexit in stateEl.Elements(stateEl.Name.Namespace + "onexit"))
             {
-                var parentElement = stateElement.Parent;
-                if (parentElement != null && parentElement.Attribute("initial")?.Value == id)
-                {
-                    stateData.IsInitial = true;
-                }
+                stateData.onExitActions.Add(GetCleanInnerXml(onexit));
             }
 
-            var datamodel = stateElement.Element(stateElement.Name.Namespace + "datamodel");
-            if (datamodel != null)
-            {
-                foreach (var dataEl in datamodel.Elements(stateElement.Name.Namespace + "data"))
-                {
-                    string dataId = dataEl.Attribute("id")?.Value;
-                    string dataExpr = dataEl.Attribute("expr")?.Value;
-                    if (!string.IsNullOrEmpty(dataId))
-                    {
-                        stateData.DataModel[dataId] = dataExpr;
-                    }
-                }
-            }
+            data.states.Add(stateData);
 
-            foreach (var onentry in stateElement.Elements(stateElement.Name.Namespace + "onentry"))
-            {
-                var innerXml = string.Join("\n", onentry.Elements().Select(e => System.Text.RegularExpressions.Regex.Replace(e.ToString(), @"\s*xmlns=""[^""]*""", "")));
-                stateData.OnEntryActions.Add(innerXml);
-            }
-            foreach (var onexit in stateElement.Elements(stateElement.Name.Namespace + "onexit"))
-            {
-                var innerXml = string.Join("\n", onexit.Elements().Select(e => System.Text.RegularExpressions.Regex.Replace(e.ToString(), @"\s*xmlns=""[^""]*""", "")));
-                stateData.OnExitActions.Add(innerXml);
-            }
-
-            data.States.Add(stateData);
-
-            foreach (var transition in stateElement.Elements(stateElement.Name.Namespace + "transition"))
+            foreach (var transition in stateEl.Elements(stateEl.Name.Namespace + "transition"))
             {
                 string targetId = transition.Attribute("target")?.Value;
                 string ev = transition.Attribute("event")?.Value;
                 string cond = transition.Attribute("cond")?.Value;
 
-                List<string> actions = new List<string>();
+                List<string> actions = new();
                 var innerElements = transition.Elements().ToList();
                 if (innerElements.Count > 0)
                 {
-                    actions.Add(string.Join("\n", innerElements.Select(e => System.Text.RegularExpressions.Regex.Replace(e.ToString(), @"\s*xmlns=""[^""]*""", ""))));
+                    actions.Add(GetCleanInnerXml(transition));
                 }
 
                 if (!string.IsNullOrEmpty(targetId))
                 {
-                    data.Transitions.Add(new SCXMLTransitionData
+                    data.transitions.Add(new SCXMLTransitionData
                     {
-                        SourceId = stateData.Id,
-                        TargetId = targetId,
-                        Event = ev,
-                        Condition = cond,
-                        OriginalTargetId = targetId,
-                        OriginalEvent = ev,
-                        OriginalCondition = cond,
-                        Actions = actions
+                        sourceId = stateData.id,
+                        targetId = targetId,
+                        @event = ev,
+                        condition = cond,
+                        originalTargetId = targetId,
+                        originalEvent = ev,
+                        originalCondition = cond,
+                        onTransitionActions = actions
                     });
                 }
             }
 
-            ParseStateLevel(stateElement, id, data);
+            ParseStateLevel(stateEl, id, data);
         }
 
-        public void SaveLayout(SCStateMachine stateMachine, SCXMLData data)
+        private string GetCleanInnerXml(XElement element)
+        {
+            var copy = new XElement(element);
+            foreach (var el in copy.DescendantsAndSelf())
+            {
+                el.Name = el.Name.LocalName;
+                var attrs = el.Attributes().Where(a => !a.IsNamespaceDeclaration).ToList();
+                el.ReplaceAttributes(attrs);
+            }
+            return string.Join("\n", copy.Elements().Select(e => e.ToString()));
+        }
+
+        public void Save(SCStateMachine stateMachine, SCXMLData data)
         {
             try
             {
@@ -206,77 +176,13 @@ namespace SCUnity.Editor
                     root.Add(new XAttribute(XNamespace.Xmlns + "editor", EditorNs.NamespaceName));
                 }
 
-                // 1. Sync Global Data Model
-                SyncGlobalDataModel(root, data.GlobalDataModel);
-
-                // We no longer use or update the 'initial' attribute on the root or parent elements.
-                // We only use explicit <initial> tags.
-                // Any existing 'initial' attributes could technically be removed here, 
-                // but the prompt says "just ignore it", so we leave them alone or do nothing.
-
-                // 3. Remove Deleted States
-                var allStateIds = new HashSet<string>(data.States.Select(s => s.OriginalId ?? s.Id));
-                RemoveDeletedStates(root, allStateIds);
-
-                // 3. Update Existing States and Transitions, and Create New Ones
-                foreach (var state in data.States)
-                {
-                    var element = FindElementById(root, state.OriginalId ?? state.Id);
-                    
-                    if (element == null)
-                    {
-                        // Element doesn't exist in XML, meaning it was created in the editor
-                        string targetTag = state.Type == StateType.Final ? "final" : (state.Type == StateType.Parallel ? "parallel" : (state.Type == StateType.Initial ? "initial" : "state"));
-                        element = new XElement(root.Name.Namespace + targetTag);
-                        element.SetAttributeValue("id", state.Id);
-                        state.OriginalId = state.Id;
-                        
-                        if (string.IsNullOrEmpty(state.ParentId))
-                        {
-                            root.Add(element);
-                        }
-                        else
-                        {
-                            var parentElement = FindElementById(root, state.ParentId);
-                            if (parentElement != null) parentElement.Add(element);
-                            else root.Add(element); // Fallback
-                        }
-                    }
-
-                    if (element != null)
-                    {
-                        // Update ID and layout
-                        if (state.Id != (state.OriginalId ?? state.Id))
-                        {
-                            element.SetAttributeValue("id", state.Id);
-                            state.OriginalId = state.Id;
-                        }
-
-                        // Update Type tag (e.g. state -> final)
-                        string targetTag = state.Type == StateType.Final ? "final" : (state.Type == StateType.Parallel ? "parallel" : (state.Type == StateType.Initial ? "initial" : "state"));
-                        if (element.Name.LocalName != targetTag)
-                        {
-                            element.Name = element.Name.Namespace + targetTag;
-                        }
-
-                        element.SetAttributeValue(EditorNs + "x", state.Position.x.ToString("F1", CultureInfo.InvariantCulture));
-                        element.SetAttributeValue(EditorNs + "y", state.Position.y.ToString("F1", CultureInfo.InvariantCulture));
-
-                        // Sync Action Blocks
-                        SyncActionBlock(element, "onentry", state.OnEntryActions);
-                        SyncActionBlock(element, "onexit", state.OnExitActions);
-
-                        // Sync Transitions for this state
-                        var validTransitions = data.Transitions.Where(t => t.SourceId == state.Id).ToList();
-                        SyncTransitions(element, validTransitions);
-                    }
-                }
+                SyncDataModel(root, data.globalDataModel);
+                UpsertStates(root, data);
+                RemoveDeletedStates(root, data.states);
 
                 stateMachine.ScXml = doc.ToString();
-                
-#if UNITY_EDITOR
+
                 UnityEditor.EditorUtility.SetDirty(stateMachine);
-#endif
             }
             catch (Exception e)
             {
@@ -284,162 +190,243 @@ namespace SCUnity.Editor
             }
         }
 
-        private void SyncGlobalDataModel(XElement root, Dictionary<string, string> globalDataModel)
+        private void UpsertStates(XElement root, SCXMLData data)
         {
-            var datamodelElement = root.Element(root.Name.Namespace + "datamodel");
-            if (globalDataModel.Count > 0 && datamodelElement == null)
+            foreach (var state in data.states)
             {
-                datamodelElement = new XElement(root.Name.Namespace + "datamodel");
-                root.AddFirst(datamodelElement);
-            }
-            
-            if (datamodelElement != null)
-            {
-                var currentKeys = new HashSet<string>(globalDataModel.Keys);
-                var dataElements = datamodelElement.Elements(root.Name.Namespace + "data").ToList();
-                
-                foreach (var dataElem in dataElements)
+                var element = FindStateElement(root, state);
+
+                // Element doesn't exist in XML, meaning it was created in the editor
+                if (element == null)
                 {
-                    var idAttr = dataElem.Attribute("id");
-                    if (idAttr != null && !currentKeys.Contains(idAttr.Value))
+                    string targetTag = Enum.GetName(typeof(StateType), state.type).ToLower();
+                    element = new XElement(root.Name.Namespace + targetTag);
+                    element.SetAttributeValue("id", state.id);
+                    state.originalId = state.id;
+
+                    if (string.IsNullOrEmpty(state.parentId))
                     {
-                        dataElem.Remove();
-                    }
-                }
-                
-                foreach (var kvp in globalDataModel)
-                {
-                    var dataElem = datamodelElement.Elements(root.Name.Namespace + "data").FirstOrDefault(e => e.Attribute("id")?.Value == kvp.Key);
-                    if (dataElem == null)
-                    {
-                        dataElem = new XElement(root.Name.Namespace + "data", new XAttribute("id", kvp.Key), new XAttribute("expr", kvp.Value));
-                        datamodelElement.Add(dataElem);
+                        root.Add(element);
                     }
                     else
                     {
-                        dataElem.SetAttributeValue("expr", kvp.Value);
+                        var parentElement = FindElementById(root, state.parentId);
+                        if (parentElement != null) parentElement.Add(element);
+                        else root.Add(element);
+                    }
+                }
+                else
+                {
+                    if (element.Attribute("id") == null)
+                    {
+                        element.SetAttributeValue("id", state.id);
+                        state.originalId = state.id;
+                    }
+
+                    if (state.id != (state.originalId ?? state.id))
+                    {
+                        element.SetAttributeValue("id", state.id);
+                        state.originalId = state.id;
+                    }
+
+                    string targetTag = Enum.GetName(typeof(StateType), state.type).ToLower();
+                    if (element.Name.LocalName != targetTag)
+                    {
+                        element.Name = element.Name.Namespace + targetTag;
                     }
                 }
 
-                if (!datamodelElement.HasElements) datamodelElement.Remove();
+                element.SetAttributeValue(EditorNs + "x", state.position.x.ToString("F1", CultureInfo.InvariantCulture));
+                element.SetAttributeValue(EditorNs + "y", state.position.y.ToString("F1", CultureInfo.InvariantCulture));
+
+                SyncActionBlock(element, "onentry", state.onEntryActions);
+                SyncActionBlock(element, "onexit", state.onExitActions);
+
+                var validTransitions = data.transitions.Where(t => t.sourceId == state.id).ToList();
+                SyncTransitions(element, validTransitions);
+
+                SyncDataModel(element, state.dataModel);
             }
         }
 
-        private void RemoveDeletedStates(XElement parent, HashSet<string> validIds)
+        private void RemoveDeletedStates(XElement parent, List<SCXMLStateData> states)
         {
+            var validIds = new HashSet<string>(states.Select(s => s.originalId ?? s.id));
             var elements = parent.Elements().ToList();
             foreach (var el in elements)
             {
-                if (el.Name.LocalName == "state" || el.Name.LocalName == "parallel" || el.Name.LocalName == "initial" || el.Name.LocalName == "final")
+                if (Enum.GetNames(typeof(StateType)).Contains(el.Name.LocalName, StringComparer.OrdinalIgnoreCase))
                 {
                     var idAttr = el.Attribute("id");
                     if (idAttr != null && !validIds.Contains(idAttr.Value))
                     {
                         el.Remove();
                     }
+                    else if (idAttr == null)
+                    {
+                        el.Remove();
+                    }
                     else
                     {
-                        RemoveDeletedStates(el, validIds);
+                        RemoveDeletedStates(el, states);
                     }
                 }
             }
         }
 
-        private void SyncActionBlock(XElement stateElement, string actionName, List<string> newContents)
+        private void SyncDataModel(XElement element, Dictionary<string, string> dataModel)
         {
-            var actionElement = stateElement.Element(stateElement.Name.Namespace + actionName);
-            if (newContents == null || newContents.Count == 0 || (newContents.Count == 1 && string.IsNullOrWhiteSpace(newContents[0])))
+            var dataModelEl = element.Element(element.Name.Namespace + "datamodel");
+            if (dataModel.Count > 0 && dataModelEl == null)
             {
-                if (actionElement != null) actionElement.Remove();
+                dataModelEl = new XElement(element.Name.Namespace + "datamodel");
+                element.AddFirst(dataModelEl);
             }
-            else
+
+            if (dataModelEl != null)
             {
-                if (actionElement == null)
+                var currentKeys = new HashSet<string>(dataModel.Keys);
+                var dataElements = dataModelEl.Elements(element.Name.Namespace + "data").ToList();
+
+                foreach (var dataEl in dataElements)
                 {
-                    actionElement = new XElement(stateElement.Name.Namespace + actionName);
-                    stateElement.AddFirst(actionElement);
+                    var idAttr = dataEl.Attribute("id");
+                    if (idAttr != null && !currentKeys.Contains(idAttr.Value))
+                    {
+                        dataEl.Remove();
+                    }
                 }
-                actionElement.RemoveNodes();
-                foreach (var content in newContents)
+
+                foreach (var kvp in dataModel)
                 {
-                    if (string.IsNullOrWhiteSpace(content)) continue;
-                    try 
+                    var dataEl = dataModelEl
+                        .Elements(element.Name.Namespace + "data")
+                        .FirstOrDefault(e => e.Attribute("id")?.Value == kvp.Key);
+
+                    if (dataEl == null)
                     {
-                        var parsed = XElement.Parse($"<root xmlns='{stateElement.Name.Namespace.NamespaceName}'>{content}</root>");
-                        actionElement.Add(parsed.Nodes());
+                        dataEl = new XElement(
+                            element.Name.Namespace + "data",
+                            new XAttribute("id", kvp.Key),
+                            new XAttribute("expr", kvp.Value)
+                        );
+                        dataModelEl.Add(dataEl);
                     }
-                    catch
+                    else
                     {
-                        actionElement.Add(new XText(content));
+                        dataEl.SetAttributeValue("expr", kvp.Value);
                     }
+                }
+
+                if (!dataModelEl.HasElements) dataModelEl.Remove();
+            }
+        }
+
+        private void SyncActionBlock(XElement stateEl, string actionName, List<string> newContents)
+        {
+            var actionEl = stateEl.Element(stateEl.Name.Namespace + actionName);
+            if (
+                newContents == null || newContents.Count == 0 ||
+                (newContents.Count == 1 && string.IsNullOrWhiteSpace(newContents[0]))
+            )
+            {
+                actionEl?.Remove();
+                return;
+            }
+
+            if (actionEl == null)
+            {
+                actionEl = new XElement(stateEl.Name.Namespace + actionName);
+                stateEl.AddFirst(actionEl);
+            }
+
+            actionEl.RemoveNodes();
+            foreach (var content in newContents)
+            {
+                if (string.IsNullOrWhiteSpace(content)) continue;
+                try
+                {
+                    var parsed = XElement.Parse($"<root xmlns='{stateEl.Name.Namespace.NamespaceName}'>{content}</root>");
+                    actionEl.Add(parsed.Nodes());
+                }
+                catch
+                {
+                    actionEl.Add(new XText(content));
                 }
             }
         }
 
-        private void SyncTransitions(XElement stateElement, List<SCXMLTransitionData> validTransitions)
+        private void SyncTransitions(XElement stateEl, List<SCXMLTransitionData> validTransitions)
         {
-            var transElements = stateElement.Elements(stateElement.Name.Namespace + "transition").ToList();
-            
-            // First loop: match existing transitions and update or delete them
-            foreach (var transElem in transElements)
+            var transElements = stateEl.Elements(stateEl.Name.Namespace + "transition").ToList();
+
+            foreach (var transEl in transElements)
             {
-                string target = transElem.Attribute("target")?.Value;
-                string evt = transElem.Attribute("event")?.Value;
-                string cond = transElem.Attribute("cond")?.Value;
+                string target = transEl.Attribute("target")?.Value;
+                string ev = transEl.Attribute("event")?.Value;
+                string cond = transEl.Attribute("cond")?.Value;
 
-                var matchedData = validTransitions.FirstOrDefault(t => 
-                    (t.OriginalTargetId ?? t.TargetId) == target && 
-                    (t.OriginalEvent ?? t.Event) == evt && 
-                    (t.OriginalCondition ?? t.Condition) == cond);
+                var matchingData = validTransitions.FirstOrDefault(t =>
+                    (t.originalTargetId ?? t.targetId) == target &&
+                    (t.originalEvent ?? t.@event) == ev &&
+                    (t.originalCondition ?? t.condition) == cond
+                );
 
-                if (matchedData == null)
+                if (matchingData == null)
                 {
-                    transElem.Remove();
+                    transEl.Remove();
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(matchingData.@event)) transEl.SetAttributeValue("event", matchingData.@event);
+                else transEl.Attribute("event")?.Remove();
+
+                if (!string.IsNullOrEmpty(matchingData.condition)) transEl.SetAttributeValue("cond", matchingData.condition);
+                else transEl.Attribute("cond")?.Remove();
+
+                transEl.SetAttributeValue("target", matchingData.targetId);
+
+                matchingData.originalTargetId = matchingData.targetId;
+                matchingData.originalEvent = matchingData.@event;
+                matchingData.originalCondition = matchingData.condition;
+
+                if (
+                    matchingData.onTransitionActions != null
+                    && matchingData.onTransitionActions.Count > 0
+                    && !string.IsNullOrWhiteSpace(matchingData.onTransitionActions[0])
+                )
+                {
+                    transEl.RemoveNodes();
+                    foreach (var content in matchingData.onTransitionActions)
+                    {
+                        if (string.IsNullOrWhiteSpace(content)) continue;
+                        try
+                        {
+                            var parsed = XElement.Parse($"<root xmlns='{stateEl.Name.Namespace.NamespaceName}'>{content}</root>");
+                            transEl.Add(parsed.Nodes());
+                        }
+                        catch
+                        {
+                            transEl.Add(new XText(content));
+                        }
+                    }
                 }
                 else
                 {
-                    if (!string.IsNullOrEmpty(matchedData.Event)) transElem.SetAttributeValue("event", matchedData.Event);
-                    else transElem.Attribute("event")?.Remove();
-
-                    if (!string.IsNullOrEmpty(matchedData.Condition)) transElem.SetAttributeValue("cond", matchedData.Condition);
-                    else transElem.Attribute("cond")?.Remove();
-
-                    transElem.SetAttributeValue("target", matchedData.TargetId);
-                    
-                    matchedData.OriginalTargetId = matchedData.TargetId;
-                    matchedData.OriginalEvent = matchedData.Event;
-                    matchedData.OriginalCondition = matchedData.Condition;
-
-                    // Sync actions inside transition
-                    if (matchedData.Actions != null && matchedData.Actions.Count > 0 && !string.IsNullOrWhiteSpace(matchedData.Actions[0]))
-                    {
-                        transElem.RemoveNodes();
-                        foreach (var content in matchedData.Actions)
-                        {
-                            if (string.IsNullOrWhiteSpace(content)) continue;
-                            try {
-                                var parsed = XElement.Parse($"<root xmlns='{stateElement.Name.Namespace.NamespaceName}'>{content}</root>");
-                                transElem.Add(parsed.Nodes());
-                            } catch { transElem.Add(new XText(content)); }
-                        }
-                    }
-                    else
-                    {
-                        transElem.RemoveNodes();
-                    }
-                    
-                    validTransitions.Remove(matchedData); // Processed
+                    transEl.RemoveNodes();
                 }
+
+                validTransitions.Remove(matchingData);
             }
-            
-            // Second loop: Add newly created transitions
+
+            // Add newly created transitions
             foreach (var newTrans in validTransitions)
             {
-                var newElem = new XElement(stateElement.Name.Namespace + "transition");
-                newElem.SetAttributeValue("target", newTrans.TargetId);
-                if (!string.IsNullOrEmpty(newTrans.Event)) newElem.SetAttributeValue("event", newTrans.Event);
-                if (!string.IsNullOrEmpty(newTrans.Condition)) newElem.SetAttributeValue("cond", newTrans.Condition);
-                stateElement.Add(newElem);
+                var newTransEl = new XElement(stateEl.Name.Namespace + "transition");
+                newTransEl.SetAttributeValue("target", newTrans.targetId);
+                if (!string.IsNullOrEmpty(newTrans.@event)) newTransEl.SetAttributeValue("event", newTrans.@event);
+                if (!string.IsNullOrEmpty(newTrans.condition)) newTransEl.SetAttributeValue("cond", newTrans.condition);
+                stateEl.Add(newTransEl);
             }
         }
 
@@ -447,7 +434,7 @@ namespace SCUnity.Editor
         {
             foreach (var el in parent.Elements())
             {
-                if (el.Name.LocalName == "state" || el.Name.LocalName == "parallel" || el.Name.LocalName == "initial" || el.Name.LocalName == "final")
+                if (Enum.GetNames(typeof(StateType)).Contains(el.Name.LocalName, StringComparer.OrdinalIgnoreCase))
                 {
                     var idAttr = el.Attribute("id");
                     if (idAttr != null && idAttr.Value == id)
@@ -458,6 +445,28 @@ namespace SCUnity.Editor
                     if (childMatch != null) return childMatch;
                 }
             }
+            return null;
+        }
+
+        private XElement FindStateElement(XElement root, SCXMLStateData state)
+        {
+            string searchId = state.originalId ?? state.id;
+            var exactMatch = FindElementById(root, searchId);
+            if (exactMatch != null) return exactMatch;
+
+            if (searchId.StartsWith("_"))
+            {
+                XElement parentEl = string.IsNullOrEmpty(state.parentId) ? root : FindElementById(root, state.parentId);
+                if (parentEl != null)
+                {
+                    string targetTag = Enum.GetName(typeof(StateType), state.type).ToLower();
+                    return parentEl.Elements().FirstOrDefault(e =>
+                        e.Name.LocalName.Equals(targetTag, StringComparison.OrdinalIgnoreCase) &&
+                        e.Attribute("id") == null
+                    );
+                }
+            }
+
             return null;
         }
     }

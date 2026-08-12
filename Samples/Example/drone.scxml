@@ -26,7 +26,7 @@
     <onentry>
       <log label="Mission" expr="'Starting mission: ' + missionName" />
     </onentry>
-    
+
     <initial>
       <transition target="Takeoff" />
     </initial>
@@ -35,7 +35,6 @@
       <transition event="altitude_reached" target="Flying" />
     </state>
 
-    <!-- Parallel state: Drone flies while camera operates independently -->
     <parallel id="Flying" editor:x="350" editor:y="550">
       <transition event="battery_low" cond="battery &lt; 20" target="Landing" />
       <transition event="mission_complete" target="Landing" />
@@ -72,7 +71,6 @@
       <transition event="landed" target="Idle" />
     </state>
 
-    <!-- This transitions out of the entire Active compound state -->
     <transition event="critical_error" target="Error" />
   </state>
 
