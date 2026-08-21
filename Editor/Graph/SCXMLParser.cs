@@ -74,6 +74,15 @@ namespace SCUnity.Editor
             string typeString = stateEl.Name.LocalName;
             StateType type = Enum.TryParse(typeString, true, out StateType parsedType) ? parsedType : StateType.State;
 
+            if (type == StateType.State && string.IsNullOrEmpty(parentId))
+            {
+                var rootInitial = stateEl.Parent?.Attribute("initial")?.Value;
+                if (rootInitial != null && rootInitial == id)
+                {
+                    type = StateType.Initial;
+                }
+            }
+
             if (string.IsNullOrEmpty(id))
             {
                 id = $"_{typeString}_{Guid.NewGuid().ToString()[..5]}";
@@ -192,14 +201,22 @@ namespace SCUnity.Editor
 
         private void UpsertStates(XElement root, SCXMLData data)
         {
+            root.Attribute("initial")?.Remove();
+
             foreach (var state in data.states)
             {
                 var element = FindStateElement(root, state);
+                string targetTag = Enum.GetName(typeof(StateType), state.type).ToLower();
+
+                if (state.type == StateType.Initial && string.IsNullOrEmpty(state.parentId))
+                {
+                    targetTag = "state";
+                    root.SetAttributeValue("initial", state.id);
+                }
 
                 // Element doesn't exist in XML, meaning it was created in the editor
                 if (element == null)
                 {
-                    string targetTag = Enum.GetName(typeof(StateType), state.type).ToLower();
                     element = new XElement(root.Name.Namespace + targetTag);
                     element.SetAttributeValue("id", state.id);
                     state.originalId = state.id;
@@ -229,7 +246,6 @@ namespace SCUnity.Editor
                         state.originalId = state.id;
                     }
 
-                    string targetTag = Enum.GetName(typeof(StateType), state.type).ToLower();
                     if (element.Name.LocalName != targetTag)
                     {
                         element.Name = element.Name.Namespace + targetTag;

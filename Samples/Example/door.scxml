@@ -1,33 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<scxml
-    xmlns="http://www.w3.org/2005/07/scxml"
-    version="1.0"
-    datamodel="ecmascript"
->
-    <datamodel>
-        <data id="count" expr="0"/>
-    </datamodel>
-
-    <initial id="Closed">
-        <onentry>
-            <log expr="_event.data.msg + ' received on close.'"/>
-        </onentry>
-
-        <transition event="open" target="Open"/>
-    </initial>
-
-    <state id="Open">
-        <onentry>
-            <assign location="count" expr="count + 1"/>
-            <log expr="_event.data.msg + ' received on open.'"/>
-        </onentry>
-
-        <transition event="close" cond="count &lt; 3" target="Closed"/>
-
-        <transition event="close" cond="count >= 3" target="Broken">
-            <log label="send:broken" expr="JSON.stringify({ count: count })"/>
-        </transition>
-    </state>
-
-    <final id="Broken"/>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" datamodel="ecmascript" xmlns:editor="http://lepoopz.com/editor" initial="Closed">
+  <datamodel>
+    <data id="count" expr="0" />
+  </datamodel>
+  <state id="Closed" editor:x="0.0" editor:y="0.0">
+    <onentry>
+      <log expr="_event.data.msg + ' received on close.'" />
+    </onentry>
+    <transition event="open" target="Open" />
+  </state>
+  <state id="Open" editor:x="220.0" editor:y="0.0">
+    <onentry>
+      <assign location="count" expr="count + 1" />
+      <log expr="_event.data.msg + ' received on open.'" />
+    </onentry>
+    <transition event="close" cond="count &lt; 3" target="Closed" />
+    <transition event="close" cond="count &gt;= 3" target="Broken">
+      <log label="send:broken" expr="JSON.stringify({ count: count })" />
+    </transition>
+  </state>
+  <final id="Broken" editor:x="440.0" editor:y="0.0" />
 </scxml>

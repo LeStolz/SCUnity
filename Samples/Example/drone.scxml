@@ -1,14 +1,12 @@
-<scxml version="1.0" xmlns="http://www.w3.org/2005/07/scxml" xmlns:editor="http://www.w3.org/2005/07/scxml">
+<scxml version="1.0" xmlns="http://www.w3.org/2005/07/scxml" xmlns:editor="http://lepoopz.com/editor" initial="_initial_6610b">
   <datamodel>
     <data id="battery" expr="100" />
     <data id="missionName" expr="'Alpha'" />
   </datamodel>
-
-  <initial>
+  <state id="_initial_6610b" editor:x="0.0" editor:y="0.0">
     <transition target="Booting" />
-  </initial>
-
-  <state id="Booting" editor:x="100" editor:y="100">
+  </state>
+  <state id="Booting" editor:x="220.0" editor:y="0.0">
     <onentry>
       <log label="System" expr="'Booting drone OS...'" />
     </onentry>
@@ -16,49 +14,42 @@
       <assign location="battery" expr="100" />
     </transition>
   </state>
-
-  <state id="Idle" editor:x="300" editor:y="100">
+  <state id="Idle" editor:x="440.0" editor:y="0.0">
     <transition event="start_mission" target="Active" />
     <transition event="critical_error" target="Error" />
   </state>
-
-  <state id="Active" editor:x="300" editor:y="300">
+  <state id="Active" editor:x="660.0" editor:y="0.0">
     <onentry>
       <log label="Mission" expr="'Starting mission: ' + missionName" />
     </onentry>
-
-    <initial>
+    <initial id="_initial_12fed" editor:x="700.0" editor:y="120.0">
       <transition target="Takeoff" />
     </initial>
-
-    <state id="Takeoff" editor:x="350" editor:y="400">
+    <state id="Takeoff" editor:x="920.0" editor:y="120.0">
       <transition event="altitude_reached" target="Flying" />
     </state>
-
-    <parallel id="Flying" editor:x="350" editor:y="550">
+    <parallel id="Flying" editor:x="1140.0" editor:y="120.0">
       <transition event="battery_low" cond="battery &lt; 20" target="Landing" />
       <transition event="mission_complete" target="Landing" />
-
-      <state id="Navigation" editor:x="400" editor:y="650">
-        <initial>
+      <state id="Navigation" editor:x="1180.0" editor:y="240.0">
+        <initial id="_initial_b73e6" editor:x="1220.0" editor:y="360.0">
           <transition target="Waypoints" />
         </initial>
-        <state id="Waypoints" editor:x="450" editor:y="750">
+        <state id="Waypoints" editor:x="1440.0" editor:y="360.0">
           <transition event="return_to_home" target="Returning" />
         </state>
-        <state id="Returning" editor:x="650" editor:y="750">
+        <state id="Returning" editor:x="1660.0" editor:y="360.0">
           <transition event="home_reached" target="Waypoints" />
         </state>
       </state>
-
-      <state id="Camera" editor:x="400" editor:y="900">
-        <initial>
+      <state id="Camera" editor:x="1940.0" editor:y="240.0">
+        <initial id="_initial_41cc8" editor:x="1980.0" editor:y="360.0">
           <transition target="Standby" />
         </initial>
-        <state id="Standby" editor:x="450" editor:y="1000">
+        <state id="Standby" editor:x="2200.0" editor:y="360.0">
           <transition event="start_record" target="Recording" />
         </state>
-        <state id="Recording" editor:x="650" editor:y="1000">
+        <state id="Recording" editor:x="2420.0" editor:y="360.0">
           <transition event="stop_record" target="Standby" />
           <onentry>
             <log label="Camera" expr="'Recording started'" />
@@ -66,15 +57,12 @@
         </state>
       </state>
     </parallel>
-
-    <state id="Landing" editor:x="350" editor:y="1200">
+    <state id="Landing" editor:x="2760.0" editor:y="120.0">
       <transition event="landed" target="Idle" />
     </state>
-
     <transition event="critical_error" target="Error" />
   </state>
-
-  <final id="Error" editor:x="700" editor:y="100">
+  <final id="Error" editor:x="3040.0" editor:y="0.0">
     <onentry>
       <log label="System" expr="'Emergency shutdown initiated!'" />
     </onentry>

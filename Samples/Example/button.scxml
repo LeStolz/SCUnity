@@ -1,14 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<scxml
-    xmlns="http://www.w3.org/2005/07/scxml"
-    version="1.0"
-    datamodel="ecmascript"
->
-    <state id="Top">
-        <transition event="toggle" target="Bottom"/>
-    </state>
-
-    <initial id="Bottom">
-        <transition event="toggle" target="Top"/>
-    </initial>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" datamodel="ecmascript" xmlns:editor="http://lepoopz.com/editor" initial="Bottom">
+  <state id="Top" editor:x="0.0" editor:y="0.0">
+    <transition event="toggle" target="Bottom" />
+  </state>
+  <state id="Bottom" editor:x="220.0" editor:y="0.0">
+    <transition event="toggle" target="Top" />
+  </state>
 </scxml>
